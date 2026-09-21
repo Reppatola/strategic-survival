@@ -7,15 +7,18 @@ export const COLORS = {
   bg: 0x1a1a1a,
   floor: 0x222222,
   player: 0x44ff44,
+  playerCrouch: 0x4488ff,
   wall: 0x555555,
   wallEdge: 0x777777,
   bullet: 0xffdd44,
   zone: 0x4488ff,
   zoneActive: 0xff4488,
+  lastKnown: 0xff4488,
 };
 
 export const PLAYER = {
   size: 22,
+  crouchSpeed: 90,
   walkSpeed: 180,
   sprintSpeed: 320,
 };
@@ -23,26 +26,29 @@ export const PLAYER = {
 export const NOISE = {
   max: 100,
 
-  // Базовый шум от передвижения
+  // Базовый шум от передвижения (держится, пока двигаешься)
+  crouchTarget: 5,
   walkTarget: 20,
   sprintTarget: 50,
+
+  crouchRamp: 0.3,
   walkRamp: 0.6,
   sprintRamp: 1.2,
-  baseDecay: 1.5,
+  baseDecay: 1.0,
 
   // Импульс от выстрела: 3 выстрела = 100%
   shotImpulse: 34,
-  pulseDecay: 0.20,
+  pulseDecay: 0.25,
 
   // Визуальный круг
-  circleMin: 18,
+  circleMin: 12,
   circleMax: 160,
 
   // Критический режим
-  critical: 100,          // активируется при достижении
-  criticalRelease: 10,    // снимается, когда шум падает до этого значения
+  critical: 100,
+  criticalRelease: 10,
 
-  // Порог «громкой точки» — пока шум выше, зомби знают, где игрок
+  // Порог «громкой точки»
   lastKnownThreshold: 10,
 };
 

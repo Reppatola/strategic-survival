@@ -14,11 +14,8 @@ export default class GameScene extends Phaser.Scene {
     this.pulseNoise = 0;
     this.noiseLevel = 0;
     this.lastShot = -999;
-
-    // Критический режим
     this.criticalActive = false;
 
-    // Последняя «громкая» позиция игрока
     this.lastKnownX = WORLD.width / 2;
     this.lastKnownY = WORLD.height / 2;
 
@@ -28,14 +25,10 @@ export default class GameScene extends Phaser.Scene {
       .rectangle(WORLD.width / 2, WORLD.height / 2, WORLD.width, WORLD.height, COLORS.floor)
       .setDepth(-1);
 
-    // --- Зоны-«цели» (будущие зомби / объекты) ---
+    // --- Зоны ---
     this.zones = [];
     const zoneData = [
-      [500, 400],
-      [900, 700],
-      [1300, 350],
-      [1500, 900],
-      [700, 1000],
+      [500, 400], [900, 700], [1300, 350], [1500, 900], [700, 1000],
     ];
     zoneData.forEach(([x, y]) => {
       const circle = this.add.circle(x, y, ZONE.radius, COLORS.zone, 0.05);
@@ -43,6 +36,15 @@ export default class GameScene extends Phaser.Scene {
       circle.setDepth(-1);
       this.zones.push(circle);
     });
+
+    // --- Маркер LAST KNOWN (крестик на карте) ---
+    this.lastKnownMarker = this.add.container(this.lastKnownX, this.lastKnownY);
+    const crossH = this.add.rectangle(0, 0, 22, 2, COLORS.lastKnown, 1);
+    const crossV = this.add.rectangle(0, 0, 2, 22, COLORS.lastKnown, 1);
+    const crossRing = this.add.circle(0, 0, 14);
+    crossRing.setStrokeStyle(2, COLORS.lastKnown, 0.7);
+    this.lastKnownMarker.add([crossH, crossV, crossRing]);
+    this.lastKnownMarker.setDepth(2);
 
     // --- Игрок ---
     this.player = this.add.rectangle(
@@ -84,7 +86,9 @@ export default class GameScene extends Phaser.Scene {
 
     // --- Управление ---
     this.keys = this.input.keyboard.addKeys({
-      up: 'W', down: 'S', left: 'A', right: 'D', shift: 'SHIFT',
+      up: 'W', down: 'S', left: 'A', right: 'D',
+      shift: 'SHIFT',
+      crouch: 'C',
     });
 
     this.input.on('pointerdown', (pointer) => this.shoot(pointer));
@@ -124,9 +128,9 @@ export default class GameScene extends Phaser.Scene {
       })
       .setOrigin(0.5).setScrollFactor(0).setDepth(103);
 
-    // Подсказки управления
+    // Подсказки
     this.add
-      .text(GAME_WIDTH - 12, 10, 'WASD — walk\nSHIFT — sprint\nLMB — shoot', {
+      .text(GAME_WIDTH - 12, 10, 'WASD — walk\nSHIFT — sprint\nC — crouch\nLMB — shoot', {
         fontSize: '11px',
         color: '#666666',
         fontFamily: 'Courier New, monospace',
@@ -134,7 +138,6 @@ export default class GameScene extends Phaser.Scene {
       })
       .setOrigin(1, 0).setScrollFactor(0).setDepth(100);
 
-    // Красный оверлей
     this.dangerOverlay = this.add
       .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0xff0000, 0)
       .setOrigin(0, 0).setScrollFactor(0).setDepth(99);
@@ -146,7 +149,6 @@ export default class GameScene extends Phaser.Scene {
       pointer.worldX, pointer.worldY
     );
 
-    // Создаём пулю
     const bullet = this.add.rectangle(
       this.player.x, this.player.y,
       BULLET.size * 2, BULLET.size,
@@ -155,20 +157,15 @@ export default class GameScene extends Phaser.Scene {
     bullet.setRotation(angle);
     bullet.setStrokeStyle(1, 0xffffff, 0.8);
 
-    // 1. Физика
     this.physics.add.existing(bullet);
-
-    // 2. В группу (сбрасывает тело)
     this.bullets.add(bullet);
 
-    // 3. Скорость — ПОСЛЕ группы
     bullet.body.setAllowGravity(false);
     bullet.body.setVelocity(
       Math.cos(angle) * BULLET.speed,
       Math.sin(angle) * BULLET.speed
     );
 
-    // Вспышка ствола
     const flash = this.add.rectangle(
       this.player.x, this.player.y,
       24, 3, 0xffee66, 0.9
@@ -180,21 +177,23 @@ export default class GameScene extends Phaser.Scene {
       onComplete: () => flash.destroy(),
     });
 
-    // Импульс шума
+    // Выстрел громкий — выбивает из стелса
     this.pulseNoise = Math.min(NOISE.max, this.pulseNoise + NOISE.shotImpulse);
     this.lastShot = this.time.now;
 
-    // Автоудаление
     this.time.delayedCall(BULLET.lifespan, () => {
       if (bullet.active) bullet.destroy();
     });
   }
 
   update(time) {
-    // --- Ввод ---
     const keys = this.keys;
-    const sprinting = keys.shift.isDown;
-    const speed = sprinting ? PLAYER.sprintSpeed : PLAYER.walkSpeed;
+    const isCrouching = keys.crouch.isDown;
+    const isSprinting = keys.shift.isDown && !isCrouching;
+
+    let speed = PLAYER.walkSpeed;
+    if (isCrouching) speed = PLAYER.crouchSpeed;
+    else if (isSprinting) speed = PLAYER.sprintSpeed;
 
     let vx = 0, vy = 0;
     if (keys.left.isDown) vx -= speed;
@@ -210,31 +209,46 @@ export default class GameScene extends Phaser.Scene {
 
     const isMoving = vx !== 0 || vy !== 0;
 
-    // --- Базовый шум (движение) ---
-    let target, ramp;
-    if (!isMoving) {
-      target = 0;
-      ramp = NOISE.baseDecay;
-    } else if (sprinting) {
+    // --- Определение состояния ---
+    let state, target, ramp;
+    if (isMoving && isCrouching) {
+      state = 'CROUCH';
+      target = NOISE.crouchTarget;
+      ramp = NOISE.crouchRamp;
+    } else if (isMoving && isSprinting) {
+      state = 'SPRINT';
       target = NOISE.sprintTarget;
       ramp = NOISE.sprintRamp;
-    } else {
+    } else if (isMoving) {
+      state = 'WALK';
       target = NOISE.walkTarget;
       ramp = NOISE.walkRamp;
+    } else {
+      state = 'IDLE';
+      target = 0;
+      ramp = NOISE.baseDecay;
     }
 
+    // --- Базовый шум ---
     if (this.baseNoise < target) {
       this.baseNoise = Math.min(target, this.baseNoise + ramp);
     } else {
       this.baseNoise = Math.max(target, this.baseNoise - ramp);
     }
 
-    // --- Импульсный шум (выстрелы) ---
+    // --- Импульсный шум ---
     this.pulseNoise = Math.max(0, this.pulseNoise - NOISE.pulseDecay);
 
-    // --- Итоговый шум ---
+    // --- Итог ---
     this.noiseLevel = Math.min(NOISE.max, this.baseNoise + this.pulseNoise);
     const ratio = this.noiseLevel / NOISE.max;
+
+    // --- Визуал игрока: цвет зависит от режима ---
+    if (isCrouching) {
+      this.player.setFillStyle(COLORS.playerCrouch);
+    } else {
+      this.player.setFillStyle(COLORS.player);
+    }
 
     // --- Визуал круга ---
     const radius = Phaser.Math.Linear(NOISE.circleMin, NOISE.circleMax, ratio);
@@ -253,7 +267,7 @@ export default class GameScene extends Phaser.Scene {
     this.noiseCircle.setFillStyle(tint, 0.05 + ratio * 0.18);
     this.noiseCircle.setStrokeStyle(2, tint, 0.35 + ratio * 0.55);
 
-    // --- Зоны: подсветка при пересечении ---
+    // --- Зоны ---
     this.zones.forEach(zone => {
       const dist = Phaser.Math.Distance.Between(
         this.player.x, this.player.y, zone.x, zone.y
@@ -268,6 +282,12 @@ export default class GameScene extends Phaser.Scene {
       }
     });
 
+    // --- Маркер LAST KNOWN ---
+    this.lastKnownMarker.setPosition(this.lastKnownX, this.lastKnownY);
+    const mkPulse = 1 + Math.sin(time / 250) * 0.15;
+    this.lastKnownMarker.setScale(mkPulse);
+    this.lastKnownMarker.setAlpha(0.5 + Math.sin(time / 400) * 0.3);
+
     // --- Полоска шума ---
     const baseW = (this.baseNoise / NOISE.max) * 400;
     const pulseW = (this.pulseNoise / NOISE.max) * 400;
@@ -275,7 +295,7 @@ export default class GameScene extends Phaser.Scene {
     this.pulseBar.x = GAME_WIDTH / 2 - 200 + baseW;
     this.pulseBar.width = Math.min(pulseW, 400 - baseW);
 
-    // --- Критический режим (гистерезис) ---
+    // --- Критический режим ---
     if (this.noiseLevel >= NOISE.critical) {
       this.criticalActive = true;
     } else if (this.noiseLevel <= NOISE.criticalRelease) {
@@ -289,14 +309,13 @@ export default class GameScene extends Phaser.Scene {
       this.dangerOverlay.fillAlpha = Math.max(0, this.dangerOverlay.fillAlpha - 0.025);
     }
 
-    // --- Обновление «последней громкой точки» ---
+    // --- Обновление LAST KNOWN ---
     if (this.noiseLevel > NOISE.lastKnownThreshold) {
       this.lastKnownX = this.player.x;
       this.lastKnownY = this.player.y;
     }
 
     // --- HUD ---
-    const state = !isMoving ? 'IDLE' : (sprinting ? 'SPRINT' : 'WALK');
     const warn = this.criticalActive ? '   ⚠ ALERT ACTIVE' : '';
     this.hud.setText(
       `STATE ${state}   V ${Math.round(Math.hypot(vx, vy))}\n` +
