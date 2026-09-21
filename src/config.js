@@ -12,3 +12,12 @@ export const COLORS = {
 };
 
 export const PLAYER = { size: 22, speed: 220 };
+
+export const NOISE = {
+  walkGain: 0.30,      // прирост шума за кадр при движении
+  decay: 0.20,         // затухание шума за кадр
+  max: 100,            // максимальное значение
+  critical: 70,        // порог тревоги
+  circleMin: 20,       // минимальный радиус визуальной волны
+  circleMax: 140,      // максимальный радиус
+};
