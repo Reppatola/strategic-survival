@@ -44,13 +44,13 @@ export default class GameScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(COLORS.bg);
   }
 
-  update(time) {
+  update(time, delta) {
     if (this.player.isDead) {
       this.hud.update();
       return;
     }
 
-    this.player.update();
+    this.player.update(time, delta);
     this.noise.update(time);
     this.zombies.update();
     this.bullets.update();

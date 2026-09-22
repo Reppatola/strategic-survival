@@ -29,7 +29,7 @@ export default class ZombieSystem {
   create(x, y, facing, isStatic) {
     const s = this.scene;
     const sprite = s.add.sprite(x, y, 'zombie');
-    sprite.setDisplaySize(ZOMBIE.size * 2, ZOMBIE.size * 2);
+    sprite.setDisplaySize(ZOMBIE.size * 1.4, ZOMBIE.size * 1.4);
     sprite.setRotation(facing);
     sprite.setDepth(5);
     s.physics.add.existing(sprite);

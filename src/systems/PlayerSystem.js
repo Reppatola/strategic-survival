@@ -11,17 +11,20 @@ export default class PlayerSystem {
     this.isCrouching = false;
     this.isSprinting = false;
     this.velocity = 0;
+    this.baseScale = 1.4;       // ← было 2, стало меньше
+    this.footstepTimer = 0;
+    this.swayTime = 0;
 
     const s = scene;
     this.sprite = s.add.sprite(WORLD.width / 2, WORLD.height / 2, 'player');
-    this.sprite.setDisplaySize(PLAYER.size * 2, PLAYER.size * 2);
+    this.sprite.setDisplaySize(PLAYER.size * this.baseScale, PLAYER.size * this.baseScale);
     this.sprite.setDepth(10);
     s.physics.add.existing(this.sprite);
     this.sprite.body.setCollideWorldBounds(true);
     s.physics.add.collider(this.sprite, s.walls);
   }
 
-  update() {
+  update(time, delta) {
     if (this.isDead) return;
     const keys = this.scene.keys;
     const isCrouching = keys.crouch.isDown;
@@ -38,7 +41,8 @@ export default class PlayerSystem {
     if (keys.down.isDown) vy += speed;
     if (vx !== 0 && vy !== 0) { vx *= Math.SQRT1_2; vy *= Math.SQRT1_2; }
     this.sprite.body.setVelocity(vx, vy);
-    // Поворот спрайта в сторону движения
+
+    // Поворот в сторону движения
     if (vx !== 0 || vy !== 0) {
       const angle = Math.atan2(vy, vx);
       this.sprite.setRotation(angle);
@@ -49,7 +53,45 @@ export default class PlayerSystem {
     this.isSprinting = isSprinting;
     this.velocity = Math.hypot(vx, vy);
 
-        this.sprite.setTint(isCrouching ? 0x6688ff : 0xffffff);
+    // --- Покачивание при ходьбе ---
+    let swayY = 1;
+    if (this.isMoving) {
+      this.swayTime += delta;
+      const speedFactor = this.isCrouching ? 140 : (this.isSprinting ? 60 : 90);
+      swayY = 1 + Math.sin(this.swayTime / speedFactor) * 0.06;
+    } else {
+      this.swayTime = 0;
+    }
+
+    const sc = PLAYER.size * this.baseScale;
+    this.sprite.setDisplaySize(sc, sc * swayY);
+
+    // --- Следы от шагов ---
+    this.footstepTimer += delta;
+    const stepInterval = this.isCrouching ? 500 : (this.isSprinting ? 130 : 220);
+    if (this.isMoving && this.footstepTimer > stepInterval) {
+      this.footstepTimer = 0;
+      this.spawnFootstep();
+    } else if (!this.isMoving) {
+      this.footstepTimer = 0;
+    }
+
+    // Tint: синий в стелсе
+    this.sprite.setTint(isCrouching ? 0x6688ff : 0xffffff);
+  }
+
+  spawnFootstep() {
+    const s = this.scene;
+    // Следы смещены назад по направлению движения, чтобы не «печатались» под ногами
+    const f = s.add.circle(this.sprite.x, this.sprite.y, 4, 0x000000, 0.35);
+    f.setDepth(1);
+    s.tweens.add({
+      targets: f,
+      alpha: 0,
+      scale: 0.4,
+      duration: 2500,
+      onComplete: () => f.destroy(),
+    });
   }
 
   damage(amount) {
