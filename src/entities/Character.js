@@ -95,7 +95,7 @@ export default class Character {
     console.log('=== НАЙДЕННЫЕ ДЕЙСТВИЯ ===', Object.keys(this.actions));
   }
 
-  update(dt, input) {
+  update(dt, input, camera) {
     if (this.mixer) this.mixer.update(dt);
     if (!this.model) return;
 
@@ -106,19 +106,42 @@ export default class Character {
     if (this.isCrouching) speed = PLAYER.crouchSpeed;
     else if (this.isSprinting) speed = PLAYER.sprintSpeed;
 
-    const dx = input.moveX * speed * dt;
-    const dz = input.moveY * speed * dt;
+    let worldX = 0, worldZ = 0;
+    const inputMag = Math.hypot(input.moveX, input.moveY);
 
-    // Плавное движение с использованием скорости напрямую
+    // Движение относительно камеры: W = «вверх по экрану», D = «вправо по экрану»
+    if (inputMag > 0.01 && camera) {
+      const camForward = new THREE.Vector3();
+      camera.getWorldDirection(camForward);
+      camForward.y = 0;
+      camForward.normalize();
+
+      const camRight = new THREE.Vector3();
+      camRight.crossVectors(camForward, new THREE.Vector3(0, 1, 0)).normalize();
+
+      const forwardAmount = -input.moveY; // W даёт -1 по moveY → +1 вперёд
+      const rightAmount = input.moveX;    // D даёт +1
+
+      worldX = camForward.x * forwardAmount + camRight.x * rightAmount;
+      worldZ = camForward.z * forwardAmount + camRight.z * rightAmount;
+
+      // Нормализуем направление и умножаем на длину ввода (диагональ не быстрее)
+      const len = Math.hypot(worldX, worldZ) || 1;
+      worldX = (worldX / len) * inputMag;
+      worldZ = (worldZ / len) * inputMag;
+    }
+
+    const dx = worldX * speed * dt;
+    const dz = worldZ * speed * dt;
+
     this.mesh.position.x += dx;
     this.mesh.position.z += dz;
 
     this.velocity = Math.hypot(dx, dz) / Math.max(dt, 0.0001);
     this.isMoving = this.velocity > 0.1;
 
-    if (input.moveX !== 0 || input.moveY !== 0) {
-      const targetAngle = Math.atan2(input.moveX, input.moveY);
-      this.mesh.rotation.y = targetAngle;
+    if (this.isMoving) {
+      this.mesh.rotation.y = Math.atan2(worldX, worldZ);
     }
 
     // Выбор анимации
@@ -132,13 +155,11 @@ export default class Character {
       this.fadeToAction(desired);
     }
 
-    // === СИНХРОНИЗАЦИЯ: анимация играет со скоростью, равной реальной ===
+    // Синхронизация скорости анимации
     if (this.currentAction && this.currentAction !== this.actions.idle) {
       const base = (this.currentAction === this.actions.run)
         ? this.runBaseSpeed
         : this.walkBaseSpeed;
-      // При реальной скорости = base → timeScale = 1 (нормальная анимация)
-      // Быстрее движешься → анимация ускоряется; медленнее → замедляется
       const scale = this.velocity / base;
       this.currentAction.timeScale = Math.max(0.3, Math.min(scale, 2.0));
     }

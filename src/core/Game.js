@@ -213,7 +213,7 @@ export default class Game {
     const dt = Math.min(this.clock.getDelta(), 0.033);
 
     this.input.update();
-    this.player.update(dt, this.input);
+    this.player.update(dt, this.input, this.camera);
 
     const time = performance.now();
     this.noise.update(dt, time, this.input);
