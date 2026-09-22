@@ -39,7 +39,34 @@ export const CAMERA = {
 };
 
 // ЗАГЛУШКИ — пока пустые, механики перенесём потом
-export const NOISE = { max: 100 };
+export const NOISE = {
+  max: 100,
+
+  // Базовый шум от передвижения (держится, пока двигаешься)
+  crouchTarget: 5,
+  walkTarget: 20,
+  sprintTarget: 50,
+
+  crouchRamp: 0.3,
+  walkRamp: 0.6,
+  sprintRamp: 1.2,
+  baseDecay: 1.0,
+
+  // Импульс от выстрела/удара (затухает)
+  shotImpulse: 34,
+  meleeImpulse: 8,
+  pulseDecay: 0.25,
+
+  // Визуальное кольцо
+  circleMin: 1.0,
+  circleMax: 8.0,
+
+  // Критический режим
+  critical: 100,
+  criticalRelease: 10,
+  lastKnownThreshold: 10,
+};
+
 export const ZOMBIE = { size: 1, speed: 2 };
 export const BULLET = { speed: 10 };
 export const MELEE = { range: 1.5 };

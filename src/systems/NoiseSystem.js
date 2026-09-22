@@ -1,94 +1,117 @@
-import Phaser from 'phaser';
-import { NOISE, WORLD, COLORS, ZONE } from '../config.js';
+import * as THREE from 'three';
+import { NOISE, COLORS } from '../config.js';
 
 export default class NoiseSystem {
-  constructor(scene) {
+  constructor(scene, player) {
     this.scene = scene;
+    this.player = player;
+
     this.base = 0;
     this.pulse = 0;
     this.level = 0;
     this.state = 'IDLE';
     this.criticalActive = false;
     this.criticalStartTime = 0;
-    this.lastKnownX = WORLD.width / 2;
-    this.lastKnownY = WORLD.height / 2;
-    this.tint = 0x44ff44;
+    this.lastKnownX = 0;
+    this.lastKnownZ = 0;
 
-    const s = scene;
-    this.circle = s.add.circle(0, 0, NOISE.circleMin, 0xff4444, 0.15);
-    this.circle.setStrokeStyle(2, 0xff4444, 0.6);
-    this.circle.setDepth(-1);
+    // Визуальное кольцо на земле
+    const ringGeom = new THREE.RingGeometry(0.9, 1.0, 48);
+    this.ringMat = new THREE.MeshBasicMaterial({
+      color: 0x44ff44,
+      transparent: true,
+      opacity: 0.6,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    this.ring = new THREE.Mesh(ringGeom, this.ringMat);
+    this.ring.rotation.x = -Math.PI / 2;
+    this.ring.position.y = 0.05;
+    scene.add(this.ring);
+
+    // Маркер LAST KNOWN — крестик на земле
+    this.markerGroup = new THREE.Group();
+    const crossMat = new THREE.MeshBasicMaterial({
+      color: 0xff4488,
+      transparent: true,
+      opacity: 0.8,
+    });
+    const bar1 = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.15), crossMat);
+    bar1.rotation.x = -Math.PI / 2;
+    const bar2 = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 1.2), crossMat);
+    bar2.rotation.x = -Math.PI / 2;
+    this.markerGroup.add(bar1, bar2);
+    this.markerGroup.position.y = 0.08;
+    this.markerGroup.visible = false;
+    scene.add(this.markerGroup);
+
+    this.crossMat = crossMat;
   }
 
   addPulse(amount) {
     this.pulse = Math.min(NOISE.max, this.pulse + amount);
   }
 
-  update(time) {
-    const s = this.scene;
-    const p = s.player;
+  update(dt, time, input) {
+    const p = this.player;
 
-    let state, target, ramp;
-    if (p.isMoving && p.isCrouching) { state = 'CROUCH'; target = NOISE.crouchTarget; ramp = NOISE.crouchRamp; }
-    else if (p.isMoving && p.isSprinting) { state = 'SPRINT'; target = NOISE.sprintTarget; ramp = NOISE.sprintRamp; }
-    else if (p.isMoving) { state = 'WALK'; target = NOISE.walkTarget; ramp = NOISE.walkRamp; }
-    else { state = 'IDLE'; target = 0; ramp = NOISE.baseDecay; }
-    this.state = state;
+    // --- Состояние ---
+    let target, ramp;
+    const moving = p.speed > 0.1;
 
-    if (this.base < target) this.base = Math.min(target, this.base + ramp);
-    else this.base = Math.max(target, this.base - ramp);
+    if (moving && input.crouch) { target = NOISE.crouchTarget; ramp = NOISE.crouchRamp; this.state = 'CROUCH'; }
+    else if (moving && input.sprint) { target = NOISE.sprintTarget; ramp = NOISE.sprintRamp; this.state = 'SPRINT'; }
+    else if (moving) { target = NOISE.walkTarget; ramp = NOISE.walkRamp; this.state = 'WALK'; }
+    else { target = 0; ramp = NOISE.baseDecay; this.state = 'IDLE'; }
 
-    this.pulse = Math.max(0, this.pulse - NOISE.pulseDecay);
+    // --- Базовый шум ---
+    if (this.base < target) this.base = Math.min(target, this.base + ramp * dt * 60);
+    else this.base = Math.max(target, this.base - ramp * dt * 60);
+
+    // --- Импульсный шум ---
+    this.pulse = Math.max(0, this.pulse - NOISE.pulseDecay * dt * 60);
+
+    // --- Итог ---
     this.level = Math.min(NOISE.max, this.base + this.pulse);
     const ratio = this.level / NOISE.max;
 
-    const radius = Phaser.Math.Linear(NOISE.circleMin, NOISE.circleMax, ratio);
-    this.circle.setPosition(p.sprite.x, p.sprite.y);
-    this.circle.setRadius(radius);
-    const pulseAmt = Math.sin(time / 180) * 3;
-    this.circle.setScale((radius + pulseAmt) / Math.max(radius, 1));
+    // --- Кольцо ---
+    const radius = THREE.MathUtils.lerp(NOISE.circleMin, NOISE.circleMax, ratio);
+    this.ring.position.x = p.mesh.position.x;
+    this.ring.position.z = p.mesh.position.z;
+    this.ring.scale.set(radius, radius, radius);
 
-    const color = Phaser.Display.Color.Interpolate.ColorWithColor(
-      new Phaser.Display.Color(68, 255, 68),
-      new Phaser.Display.Color(255, 68, 68),
-      100, ratio * 100
-    );
-    const tint = Phaser.Display.Color.GetColor(color.r, color.g, color.b);
-    this.tint = tint;
-    this.circle.setFillStyle(tint, 0.05 + ratio * 0.18);
-    this.circle.setStrokeStyle(2, tint, 0.35 + ratio * 0.55);
+    // Пульсация
+    const pulseAmt = 1 + Math.sin(time * 0.005) * 0.03;
+    this.ring.scale.multiplyScalar(pulseAmt);
 
-    s.zones.forEach(zone => {
-      const d = Phaser.Math.Distance.Between(p.sprite.x, p.sprite.y, zone.x, zone.y);
-      if (d < radius + ZONE.radius) {
-        zone.setFillStyle(COLORS.zoneActive, 0.15 + ratio * 0.15);
-        zone.setStrokeStyle(3, COLORS.zoneActive, 0.9);
-      } else {
-        zone.setFillStyle(COLORS.zone, 0.05);
-        zone.setStrokeStyle(2, COLORS.zone, 0.4);
-      }
-    });
+    // Цвет: зелёный → красный
+    const r = 0.27 + ratio * 0.73;
+    const g = 1.0 - ratio * 0.73;
+    const b = 0.27 - ratio * 0.27;
+    this.ringMat.color.setRGB(r, g, b);
+    this.ringMat.opacity = 0.25 + ratio * 0.55;
 
+    // --- LAST KNOWN ---
     if (this.level > NOISE.lastKnownThreshold) {
-      this.lastKnownX = p.sprite.x;
-      this.lastKnownY = p.sprite.y;
+      this.lastKnownX = p.mesh.position.x;
+      this.lastKnownZ = p.mesh.position.z;
+      this.markerGroup.visible = false;
+    } else if (this.level <= NOISE.lastKnownThreshold && this.lastKnownX !== 0) {
+      // Шум упал — показываем маркер
+      this.markerGroup.visible = true;
+      this.markerGroup.position.x = this.lastKnownX;
+      this.markerGroup.position.z = this.lastKnownZ;
+      // Пульсация маркера
+      this.crossMat.opacity = 0.4 + Math.sin(time * 0.008) * 0.4;
     }
-    s.lastKnownMarker.setPosition(this.lastKnownX, this.lastKnownY);
-    s.lastKnownMarker.setScale(1 + Math.sin(time / 250) * 0.15);
-    s.lastKnownMarker.setAlpha(0.5 + Math.sin(time / 400) * 0.3);
 
+    // --- Критический режим ---
     const wasCritical = this.criticalActive;
     if (this.level >= NOISE.critical) this.criticalActive = true;
     else if (this.level <= NOISE.criticalRelease) this.criticalActive = false;
 
     if (this.criticalActive && !wasCritical) this.criticalStartTime = time;
     if (!this.criticalActive) this.criticalStartTime = 0;
-
-    if (this.criticalActive) {
-      const a = 0.10 + Math.abs(Math.sin(time / 140)) * 0.20;
-      s.dangerOverlay.fillAlpha = a;
-    } else {
-      s.dangerOverlay.fillAlpha = Math.max(0, s.dangerOverlay.fillAlpha - 0.025);
-    }
   }
 }

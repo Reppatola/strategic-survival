@@ -9,20 +9,85 @@ html, body {
   color: #fff;
 }
 
-#app {
-  width: 100%;
-  height: 100%;
-}
-
+#app { width: 100%; height: 100%; }
 canvas { display: block; }
 
-/* Подсказка управления */
-.hint {
+/* ==== HUD ==== */
+#hud {
   position: fixed;
-  bottom: 12px;
-  left: 12px;
-  color: #888;
-  font-size: 12px;
-  z-index: 100;
+  inset: 0;
   pointer-events: none;
+  z-index: 10;
+}
+
+.noise-wrap {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 400px;
+  max-width: 80vw;
+}
+
+.noise-label {
+  text-align: center;
+  font-size: 11px;
+  color: #aaa;
+  margin-bottom: 4px;
+  letter-spacing: 2px;
+}
+
+.noise-bar-bg {
+  position: relative;
+  width: 100%;
+  height: 14px;
+  background: rgba(0,0,0,0.55);
+  border: 1px solid #333;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.noise-bar-base {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: #ffcc44;
+  transition: width 60ms linear;
+}
+
+.noise-bar-pulse {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  background: #ff4444;
+  transition: width 60ms linear, left 60ms linear;
+}
+
+.stats {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #88ff88;
+  background: rgba(0,0,0,0.5);
+  padding: 8px 12px;
+  border-radius: 3px;
+  white-space: pre;
+}
+
+.hint {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  font-size: 11px;
+  color: #666;
+}
+
+.danger-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: background 80ms linear;
 }

@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { WORLD, COLORS, CAMERA, TREE } from '../config.js';
 import Input from './Input.js';
 import Player from '../entities/Player.js';
+import NoiseSystem from '../systems/NoiseSystem.js';
+import HUD from '../ui/HUD.js';
 
 export default class Game {
   constructor(container) {
@@ -14,6 +16,9 @@ export default class Game {
     this.initLights();
     this.initWorld();
     this.initPlayer();
+
+    this.noise = new NoiseSystem(this.scene, this.player);
+    this.hud = new HUD();
 
     window.addEventListener('resize', () => this.onResize());
 
@@ -202,6 +207,11 @@ export default class Game {
 
     this.input.update();
     this.player.update(dt, this.input);
+
+    const time = performance.now();
+    this.noise.update(dt, time, this.input);
+    this.hud.update(this.player, this.noise);
+
     this.updateCamera(dt);
     this.updateTreeFade();
 
