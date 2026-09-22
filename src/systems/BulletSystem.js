@@ -30,6 +30,9 @@ export default class BulletSystem {
       .setOrigin(0, 0.5).setRotation(angle);
     s.tweens.add({ targets: flash, alpha: 0, duration: 100, onComplete: () => flash.destroy() });
 
+    // Поворот героя и смена спрайта на «с оружием»
+    s.player.aimAndFlash(angle);
+    
     s.noise.addPulse(NOISE.shotImpulse);
 
     if (s.noise.criticalActive && !s.territory.locked) {

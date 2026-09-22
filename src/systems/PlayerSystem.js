@@ -11,9 +11,11 @@ export default class PlayerSystem {
     this.isCrouching = false;
     this.isSprinting = false;
     this.velocity = 0;
-    this.baseScale = 1.4;       // ← было 2, стало меньше
+    this.baseScale = 1.4;
     this.footstepTimer = 0;
     this.swayTime = 0;
+    this.weaponTimer = null;
+    this.aimAngle = 0;        // последнее направление выстрела
 
     const s = scene;
     this.sprite = s.add.sprite(WORLD.width / 2, WORLD.height / 2, 'player');
@@ -46,6 +48,7 @@ export default class PlayerSystem {
     if (vx !== 0 || vy !== 0) {
       const angle = Math.atan2(vy, vx);
       this.sprite.setRotation(angle);
+      this.aimAngle = angle;
     }
 
     this.isMoving = vx !== 0 || vy !== 0;
@@ -91,6 +94,31 @@ export default class PlayerSystem {
       scale: 0.4,
       duration: 2500,
       onComplete: () => f.destroy(),
+    });
+  }
+
+    // Поворот героя в сторону выстрела и смена спрайта
+  aimAndFlash(angle) {
+    if (this.isDead) return;
+
+    // Поворачиваем героя в сторону выстрела
+    this.aimAngle = angle;
+    this.sprite.setRotation(angle);
+
+    // Меняем спрайт на «с оружием»
+    this.sprite.setTexture('player_gun');
+    const sc = PLAYER.size * this.baseScale;
+    this.sprite.setDisplaySize(sc, sc);
+
+    // Сбрасываем предыдущий таймер, если есть
+    if (this.weaponTimer) this.weaponTimer.remove();
+
+    // Через 280 мс — возвращаем в обычное состояние
+    this.weaponTimer = this.scene.time.delayedCall(280, () => {
+      if (this.isDead) return;
+      this.sprite.setTexture('player');
+      const sc2 = PLAYER.size * this.baseScale;
+      this.sprite.setDisplaySize(sc2, sc2);
     });
   }
 
