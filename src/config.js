@@ -25,30 +25,19 @@ export const PLAYER = {
 
 export const NOISE = {
   max: 100,
-
-  // Базовый шум от передвижения (держится, пока двигаешься)
   crouchTarget: 5,
   walkTarget: 20,
   sprintTarget: 50,
-
   crouchRamp: 0.3,
   walkRamp: 0.6,
   sprintRamp: 1.2,
   baseDecay: 1.0,
-
-  // Импульс от выстрела: 3 выстрела = 100%
   shotImpulse: 34,
   pulseDecay: 0.25,
-
-  // Визуальный круг
   circleMin: 12,
   circleMax: 160,
-
-  // Критический режим
   critical: 100,
   criticalRelease: 10,
-
-  // Порог «громкой точки»
   lastKnownThreshold: 10,
 };
 
@@ -58,6 +47,27 @@ export const BULLET = {
   lifespan: 1200,
 };
 
-export const ZONE = {
-  radius: 90,
+export const ZONE = { radius: 90 };
+
+export const ZOMBIE = {
+  size: 22,
+  speed: 75,
+  visionAngle: 90,        // градусы, полный угол конуса
+  visionRange: 200,       // пиксели
+  damage: 20,
+  touchCooldown: 700,
+  maxAlive: 30,
+  groupMin: 2,
+  groupMax: 4,
+  colorStatic: 0xaa2222,
+  colorSpawned: 0xcc4444,
+  colorAlerted: 0xff2222,
+};
+
+export const TERRITORY = {
+  lockAfterCriticalMs: 12000,   // 12 сек непрерывного крита → блок
+  silentToUnlockMs: 5000,       // 5 сек тишины → разлок
+  zombieSpawnOnLock: 5,         // сколько спавнить вокруг игрока
+  edgeMargin: 40,               // отступ спавна от края
+  lockSpawnInterval: 3000,      // мс между доп. спавнами при локе
 };
