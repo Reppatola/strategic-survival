@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { WORLD, COLORS, CAMERA, TREE } from '../config.js';
 import Input from './Input.js';
-import Player from '../entities/Player.js';
+import Character from '../entities/Character.js';
 import NoiseSystem from '../systems/NoiseSystem.js';
 import HUD from '../ui/HUD.js';
 
@@ -175,7 +175,11 @@ export default class Game {
   }
 
   initPlayer() {
-    this.player = new Player(this.scene);
+    this.player = new Character(
+      this.scene,
+      'assets/models/player.glb',
+      'assets/models/player_animations.glb'
+    );
   }
 
   updateCamera(dt) {
