@@ -13,10 +13,9 @@ export default class PlayerSystem {
     this.velocity = 0;
 
     const s = scene;
-    this.sprite = s.add.rectangle(
-      WORLD.width / 2, WORLD.height / 2,
-      PLAYER.size, PLAYER.size, COLORS.player
-    );
+    this.sprite = s.add.sprite(WORLD.width / 2, WORLD.height / 2, 'player');
+    this.sprite.setDisplaySize(PLAYER.size * 2, PLAYER.size * 2);
+    this.sprite.setDepth(10);
     s.physics.add.existing(this.sprite);
     this.sprite.body.setCollideWorldBounds(true);
     s.physics.add.collider(this.sprite, s.walls);
@@ -45,7 +44,7 @@ export default class PlayerSystem {
     this.isSprinting = isSprinting;
     this.velocity = Math.hypot(vx, vy);
 
-    this.sprite.setFillStyle(isCrouching ? COLORS.playerCrouch : COLORS.player);
+        this.sprite.setTint(isCrouching ? 0x6688ff : 0xffffff);
   }
 
   damage(amount) {

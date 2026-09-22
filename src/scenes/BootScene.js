@@ -5,7 +5,9 @@ export default class BootScene extends Phaser.Scene {
     super('Boot');
   }
 
-  preload() {}
+  preload() {
+    this.load.image('player', 'assets/characters/player/player_stand.png');
+  }
 
   create() {
     this.scene.start('Game');
