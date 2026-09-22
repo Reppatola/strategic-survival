@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLORS, PLAYER, WORLD, ZOMBIE } from '../config.js';
+import { COLORS, PLAYER, WORLD, ZOMBIE, MELEE } from '../config.js';
 
 export default class PlayerSystem {
   constructor(scene) {
@@ -16,6 +16,7 @@ export default class PlayerSystem {
     this.swayTime = 0;
     this.weaponTimer = null;
     this.aimAngle = 0;        // последнее направление выстрела
+    this.lastMeleeTime = 0;
 
     const s = scene;
     this.sprite = s.add.sprite(WORLD.width / 2, WORLD.height / 2, 'player');
@@ -104,7 +105,87 @@ export default class PlayerSystem {
     });
   }
 
-    // Поворот героя в сторону выстрела и смена спрайта
+  melee() {
+    if (this.isDead) return false;
+    const s = this.scene;
+    const now = s.time.now;
+    if (now - this.lastMeleeTime < MELEE.cooldown) return false;
+    this.lastMeleeTime = now;
+
+    const px = this.sprite.x;
+    const py = this.sprite.y;
+    const facing = this.sprite.rotation;
+    const halfArc = Phaser.Math.DegToRad(MELEE.arc / 2);
+    const halfBack = Phaser.Math.DegToRad(MELEE.backstabAngle / 2);
+
+    let didHit = false;
+
+    // Копия массива — потому что будем удалять зомби в цикле
+    const zombieList = [...s.zombies.list];
+
+    for (const z of zombieList) {
+      if (!z.sprite.active) continue;
+      const dx = z.sprite.x - px;
+      const dy = z.sprite.y - py;
+      const dist = Math.hypot(dx, dy);
+      if (dist > MELEE.range) continue;
+
+      const angleToZombie = Math.atan2(dy, dx);
+      const diff = Math.abs(Phaser.Math.Angle.Wrap(angleToZombie - facing));
+
+      if (diff < halfArc) {
+        // Спереди — урон + отбрасывание
+        didHit = true;
+        s.zombies.damage(z, MELEE.damage);
+        if (z.sprite.active) {
+          const kb = MELEE.knockback;
+          z.sprite.body.setVelocity(
+            Math.cos(angleToZombie) * kb,
+            Math.sin(angleToZombie) * kb
+          );
+          s.time.delayedCall(150, () => {
+            if (z.sprite.active) z.sprite.body.setVelocity(0, 0);
+          });
+        }
+        // Зомби становится агрессивным — увидел игрока в упор
+        z.isAlerted = true;
+        z.hasTarget = true;
+        z.targetX = px;
+        z.targetY = py;
+      } else if (diff > halfBack) {
+        // СЗАДИ — мгновенное убийство
+        didHit = true;
+        s.zombies.kill(z);
+        s.kills++;
+      }
+    }
+
+    // Шум от удара (тише выстрела, но не бесшумно)
+    s.noise.addPulse(MELEE.noise);
+
+    // Визуал: вспышка дуги перед игроком
+    const arcGfx = s.add.graphics();
+    arcGfx.setDepth(9);
+    arcGfx.lineStyle(3, didHit ? 0xffffff : 0xffaa44, 0.9);
+    arcGfx.beginPath();
+    arcGfx.arc(
+      px, py,
+      MELEE.range,
+      facing - halfArc,
+      facing + halfArc
+    );
+    arcGfx.strokePath();
+    s.tweens.add({
+      targets: arcGfx,
+      alpha: 0,
+      duration: 180,
+      onComplete: () => arcGfx.destroy(),
+    });
+
+    return true;
+  }
+
+  // Поворот героя в сторону выстрела и смена спрайта
   aimAndFlash(angle) {
     if (this.isDead) return;
 

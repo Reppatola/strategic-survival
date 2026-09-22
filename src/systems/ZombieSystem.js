@@ -42,6 +42,7 @@ export default class ZombieSystem {
       isAlerted: false, hasTarget: false,
       targetX: x, targetY: y,
       jitterX: 0, jitterY: 0,
+      hp: ZOMBIE.hp,
     };
     this.list.push(data);
     return data;
@@ -81,6 +82,23 @@ export default class ZombieSystem {
       data.hasTarget = true;
       data.targetX = s.player.sprite.x;
       data.targetY = s.player.sprite.y;
+    }
+  }
+
+  damage(data, amount) {
+    if (!data.sprite.active) return;
+    data.hp -= amount;
+    // Вспышка урона
+    const s = this.scene;
+    s.tweens.add({
+      targets: data.sprite,
+      alpha: 0.4,
+      duration: 80,
+      yoyo: true,
+    });
+    if (data.hp <= 0) {
+      this.kill(data);
+      s.kills++;
     }
   }
 

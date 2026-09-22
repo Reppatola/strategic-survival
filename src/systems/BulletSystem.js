@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLORS, BULLET, NOISE } from '../config.js';
+import { COLORS, BULLET, NOISE, ZOMBIE } from '../config.js';
 
 export default class BulletSystem {
   constructor(scene) {
@@ -58,8 +58,7 @@ export default class BulletSystem {
         if (!z.sprite.active || !b.active) continue;
         if (Phaser.Math.Distance.Between(b.x, b.y, z.sprite.x, z.sprite.y) < 18) {
           b.destroy();
-          this.scene.zombies.kill(z);
-          this.scene.kills++;
+          this.scene.zombies.damage(z, ZOMBIE.hp); // пуля мгновенно убивает
           this.scene.cameras.main.shake(60, 0.003);
           break;
         }

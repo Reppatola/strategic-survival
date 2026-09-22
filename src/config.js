@@ -51,6 +51,7 @@ export const ZONE = { radius: 90 };
 
 export const ZOMBIE = {
   size: 22,
+  hp: 2,
   speed: 75,
   visionAngle: 90,        // градусы, полный угол конуса
   visionRange: 200,       // пиксели
@@ -70,4 +71,14 @@ export const TERRITORY = {
   zombieSpawnOnLock: 5,         // сколько спавнить вокруг игрока
   edgeMargin: 40,               // отступ спавна от края
   lockSpawnInterval: 3000,      // мс между доп. спавнами при локе
+};
+
+export const MELEE = {
+  range: 45,           // радиус удара
+  arc: 60,             // угол конуса (полный), градусы
+  damage: 1,           // урон спереди
+  backstabAngle: 120,  // угол «сзади» (полный), градусы
+  cooldown: 400,       // мс между ударами
+  noise: 8,            // шум за удар
+  knockback: 180,      // сила отбрасывания
 };

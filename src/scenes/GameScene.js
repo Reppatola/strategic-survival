@@ -41,6 +41,10 @@ export default class GameScene extends Phaser.Scene {
       if (this.player.isDead) this.scene.restart();
     });
 
+    this.input.keyboard.on('keydown-SPACE', () => {
+      this.player.melee();
+    });
+
     this.cameras.main.setBounds(0, 0, WORLD.width, WORLD.height);
     this.cameras.main.startFollow(this.player.sprite, true, 0.12, 0.12);
     this.cameras.main.setBackgroundColor(COLORS.bg);
