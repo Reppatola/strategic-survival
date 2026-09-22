@@ -57,7 +57,7 @@ export default class NoiseSystem {
 
     // --- Состояние ---
     let target, ramp;
-    const moving = p.speed > 0.1;
+    const moving = (p.velocity || 0) > 0.1;
 
     if (moving && input.crouch) { target = NOISE.crouchTarget; ramp = NOISE.crouchRamp; this.state = 'CROUCH'; }
     else if (moving && input.sprint) { target = NOISE.sprintTarget; ramp = NOISE.sprintRamp; this.state = 'SPRINT'; }

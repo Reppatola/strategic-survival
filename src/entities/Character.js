@@ -58,6 +58,19 @@ export default class Character {
     console.log('=== ВСЕ АНИМАЦИИ ===');
     gltf.animations.forEach(a => console.log('•', a.name));
 
+    // === УДАЛЯЕМ ROOT MOTION ===
+    // Каждая анимация содержит треки: position, quaternion, scale для каждой кости.
+    // Треки position на корневой кости заставляют модель «уезжать» внутри клипа.
+    // Мы убираем все position-треки — оставляем только вращение и масштаб.
+    gltf.animations.forEach(clip => {
+      const before = clip.tracks.length;
+      clip.tracks = clip.tracks.filter(track => {
+        return !track.name.endsWith('.position');
+      });
+      const after = clip.tracks.length;
+      console.log(`Анимация "${clip.name}": удалено ${before - after} position-треков`);
+    });
+
     gltf.animations.forEach(clip => {
       const n = clip.name.toLowerCase();
       if (n.includes('idle')) {
