@@ -2,7 +2,7 @@
 
 **MMO-песочница с тактическим выживанием, системой Шума и территориальным контролем.**
 
-[🎮 Играть](https://reppatola.github.io/strategic-survival/) · [🐛 Сообщить о баге](https://github.com/Reppatola/strategic-survival/issues)
+### 🌐 [Сайт проекта](https://reppatola.github.io/Gmaes-SVMOO/) · 🎮 [Играть](https://reppatola.github.io/strategic-survival/) · 🐛 [Сообщить о баге](https://github.com/Reppatola/strategic-survival/issues)
 
 ---
 
