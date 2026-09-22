@@ -10,10 +10,18 @@ export default class BulletSystem {
   }
 
   shoot(pointer) {
+    if (this.scene.touch && this.scene.touch.enabled) return;
     const s = this.scene;
     if (s.player.isDead) return;
     const p = s.player.sprite;
     const angle = Phaser.Math.Angle.Between(p.x, p.y, pointer.worldX, pointer.worldY);
+    this.shootAtAngle(angle);
+  }
+
+  shootAtAngle(angle) {
+    const s = this.scene;
+    if (s.player.isDead) return;
+    const p = s.player.sprite;
 
     const bullet = s.add.rectangle(p.x, p.y, BULLET.size * 2, BULLET.size, COLORS.bullet);
     bullet.setRotation(angle);
@@ -30,9 +38,7 @@ export default class BulletSystem {
       .setOrigin(0, 0.5).setRotation(angle);
     s.tweens.add({ targets: flash, alpha: 0, duration: 100, onComplete: () => flash.destroy() });
 
-    // Поворот героя и смена спрайта на «с оружием»
     s.player.aimAndFlash(angle);
-    
     s.noise.addPulse(NOISE.shotImpulse);
 
     if (s.noise.criticalActive && !s.territory.locked) {

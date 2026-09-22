@@ -7,6 +7,7 @@ import BulletSystem from '../systems/BulletSystem.js';
 import ZombieSystem from '../systems/ZombieSystem.js';
 import TerritorySystem from '../systems/TerritorySystem.js';
 import HUDSystem from '../systems/HUDSystem.js';
+import TouchControls from '../systems/TouchControls.js';
 
 export default class GameScene extends Phaser.Scene {
   constructor() {
@@ -35,6 +36,7 @@ export default class GameScene extends Phaser.Scene {
     });
 
     this.input.on('pointerdown', (p) => this.bullets.shoot(p));
+    this.touch = new TouchControls(this);
     this.input.keyboard.on('keydown-R', () => {
       if (this.player.isDead) this.scene.restart();
     });
@@ -51,6 +53,13 @@ export default class GameScene extends Phaser.Scene {
     }
 
     this.player.update(time, delta);
+    // Стрельба с правого джойстика (мобилки)
+    if (this.touch && this.touch.enabled) {
+      const angle = this.touch.getShootAngle(time);
+      if (angle !== null) {
+        this.bullets.shootAtAngle(angle);
+      }
+    }
     this.noise.update(time);
     this.zombies.update();
     this.bullets.update();

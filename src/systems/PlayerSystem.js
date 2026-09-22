@@ -28,20 +28,28 @@ export default class PlayerSystem {
 
   update(time, delta) {
     if (this.isDead) return;
-    const keys = this.scene.keys;
-    const isCrouching = keys.crouch.isDown;
-    const isSprinting = keys.shift.isDown && !isCrouching;
+    const s = this.scene;
+    const useTouch = s.touch && s.touch.enabled;
+
+    const isCrouching = useTouch ? s.touch.crouchPressed : s.keys.crouch.isDown;
+    const isSprinting = useTouch ? (s.touch.sprintPressed && !isCrouching) : (s.keys.shift.isDown && !isCrouching);
 
     let speed = PLAYER.walkSpeed;
     if (isCrouching) speed = PLAYER.crouchSpeed;
     else if (isSprinting) speed = PLAYER.sprintSpeed;
 
     let vx = 0, vy = 0;
-    if (keys.left.isDown) vx -= speed;
-    if (keys.right.isDown) vx += speed;
-    if (keys.up.isDown) vy -= speed;
-    if (keys.down.isDown) vy += speed;
-    if (vx !== 0 && vy !== 0) { vx *= Math.SQRT1_2; vy *= Math.SQRT1_2; }
+    if (useTouch) {
+      vx = s.touch.moveX * speed;
+      vy = s.touch.moveY * speed;
+    } else {
+      if (s.keys.left.isDown) vx -= speed;
+      if (s.keys.right.isDown) vx += speed;
+      if (s.keys.up.isDown) vy -= speed;
+      if (s.keys.down.isDown) vy += speed;
+      if (vx !== 0 && vy !== 0) { vx *= Math.SQRT1_2; vy *= Math.SQRT1_2; }
+    }
+
     this.sprite.body.setVelocity(vx, vy);
 
     // Поворот в сторону движения
@@ -56,7 +64,7 @@ export default class PlayerSystem {
     this.isSprinting = isSprinting;
     this.velocity = Math.hypot(vx, vy);
 
-    // --- Покачивание при ходьбе ---
+    // Покачивание при ходьбе
     let swayY = 1;
     if (this.isMoving) {
       this.swayTime += delta;
@@ -69,7 +77,7 @@ export default class PlayerSystem {
     const sc = PLAYER.size * this.baseScale;
     this.sprite.setDisplaySize(sc, sc * swayY);
 
-    // --- Следы от шагов ---
+    // Следы
     this.footstepTimer += delta;
     const stepInterval = this.isCrouching ? 500 : (this.isSprinting ? 130 : 220);
     if (this.isMoving && this.footstepTimer > stepInterval) {
@@ -79,7 +87,6 @@ export default class PlayerSystem {
       this.footstepTimer = 0;
     }
 
-    // Tint: синий в стелсе
     this.sprite.setTint(isCrouching ? 0x6688ff : 0xffffff);
   }
 
