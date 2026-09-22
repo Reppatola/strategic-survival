@@ -13,8 +13,31 @@ export default class MapBuilder {
   buildFloor() {
     const s = this.scene;
     s.physics.world.setBounds(0, 0, WORLD.width, WORLD.height);
-    s.add.rectangle(WORLD.width / 2, WORLD.height / 2, WORLD.width, WORLD.height, COLORS.floor)
+
+    // Фон: тайл травы, повторяется по всей карте
+    s.add.tileSprite(0, 0, WORLD.width, WORLD.height, 'grass')
+      .setOrigin(0, 0)
       .setDepth(-3);
+
+    // Пятна земли — декор для разнообразия
+    const dirtSpots = [
+      [500, 400, 200, 150],
+      [1200, 800, 250, 180],
+      [1600, 500, 180, 160],
+      [800, 1000, 220, 200],
+    ];
+    dirtSpots.forEach(([x, y, w, h]) => {
+      s.add.tileSprite(x, y, w, h, 'dirt')
+        .setOrigin(0, 0)
+        .setDepth(-2)
+        .setAlpha(0.6);
+    });
+
+    // Озеро — область воды
+    // s.add.tileSprite(1500, 200, 350, 220, 'water')
+      // .setOrigin(0, 0)
+      // .setDepth(-2)
+      // .setAlpha(0.9);
   }
 
   buildZones() {
@@ -35,8 +58,17 @@ export default class MapBuilder {
       [400,300,200,30],[800,500,30,300],[1200,400,250,30],[1500,800,30,250],
       [600,900,300,30],[1000,200,30,200],[1600,300,200,30],[300,800,30,200],[1300,1000,200,30],
     ].forEach(([x, y, w, h]) => {
-      const wall = s.add.rectangle(x, y, w, h, COLORS.wall);
-      wall.setStrokeStyle(2, COLORS.wallEdge);
+      // Визуал: цементная текстура
+      const visual = s.add.tileSprite(x, y, w, h, 'cement');
+      visual.setDepth(1);
+
+      // Тёмная обводка для контраста
+      const border = s.add.rectangle(x, y, w, h, 0x000000, 0);
+      border.setStrokeStyle(2, 0x333333, 0.8);
+      border.setDepth(2);
+
+      // Физика — невидимый прямоугольник поверх
+      const wall = s.add.rectangle(x, y, w, h, 0x000000, 0);
       s.physics.add.existing(wall, true);
       s.walls.add(wall);
     });
