@@ -8,6 +8,7 @@ export default class Game {
     this.container = container;
     this.input = new Input();
     this.clock = new THREE.Clock();
+    this.trees = [];
 
     this.initScene();
     this.initLights();
@@ -86,7 +87,11 @@ export default class Game {
       TREE.trunkHeight,
       6
     );
-    const trunkMat = new THREE.MeshStandardMaterial({ color: COLORS.trunk });
+    const trunkMat = new THREE.MeshStandardMaterial({
+      color: COLORS.trunk,
+      transparent: true,
+      opacity: 1,
+    });
     const trunk = new THREE.Mesh(trunkGeom, trunkMat);
     trunk.position.set(x, TREE.trunkHeight / 2, z);
     trunk.castShadow = true;
@@ -99,11 +104,69 @@ export default class Game {
       color: COLORS.tree,
       flatShading: true,
       roughness: 0.9,
+      transparent: true,
+      opacity: 1,
     });
-    const crown = new THREE.Mesh(crownGeom, crownMat);
+  const crown = new THREE.Mesh(crownGeom, crownMat);
     crown.position.set(x, TREE.crownY, z);
     crown.castShadow = true;
     this.scene.add(crown);
+
+    // Сохраняем для системы видимости
+    this.trees.push({ crown, trunk, x, z });
+  }
+  
+  updateTreeFade() {
+    const camPos = this.camera.position;
+    const playerPos = this.player.mesh.position;
+
+    const dirX = playerPos.x - camPos.x;
+    const dirY = playerPos.y - camPos.y;
+    const dirZ = playerPos.z - camPos.z;
+    const dirLen = Math.hypot(dirX, dirY, dirZ);
+    const dirNX = dirX / dirLen;
+    const dirNY = dirY / dirLen;
+    const dirNZ = dirZ / dirLen;
+
+    for (const tree of this.trees) {
+      // Проекция дерева на линию камеры-игрока
+      const vX = tree.x - camPos.x;
+      const vY = TREE.crownY - camPos.y;
+      const vZ = tree.z - camPos.z;
+      const proj = vX * dirNX + vY * dirNY + vZ * dirNZ;
+
+      let targetOpacity = 1.0;
+
+      // Дерево между камерой и игроком?
+      if (proj > 0 && proj < dirLen) {
+        const lineX = camPos.x + dirNX * proj;
+        const lineY = camPos.y + dirNY * proj;
+        const lineZ = camPos.z + dirNZ * proj;
+        const distToLine = Math.hypot(
+          tree.x - lineX,
+          TREE.crownY - lineY,
+          tree.z - lineZ
+        );
+
+        if (distToLine < TREE.crownRadius + 0.8) {
+          targetOpacity = 0.15;
+        }
+      }
+
+      // Дерево близко к игроку — тоже просвечивает
+      const dxP = tree.x - playerPos.x;
+      const dzP = tree.z - playerPos.z;
+      const distToPlayer = Math.hypot(dxP, dzP);
+      if (distToPlayer < 4) {
+        targetOpacity = Math.min(targetOpacity, 0.15);
+      }
+
+      // Плавное изменение
+      const crown = tree.crown.material;
+      const trunk = tree.trunk.material;
+      crown.opacity += (targetOpacity - crown.opacity) * 0.2;
+      trunk.opacity += (Math.max(0.3, targetOpacity) - trunk.opacity) * 0.2;
+    }
   }
 
   initPlayer() {
@@ -140,6 +203,7 @@ export default class Game {
     this.input.update();
     this.player.update(dt, this.input);
     this.updateCamera(dt);
+    this.updateTreeFade();
 
     this.renderer.render(this.scene, this.camera);
   }

@@ -9,11 +9,11 @@ export const WORLD = {
 };
 
 export const PLAYER = {
-  radius: 0.28,
-  height: 1.1,
-  walkSpeed: 3.5,
-  sprintSpeed: 6,
-  crouchSpeed: 1.8,
+  radius: 0.14,
+  height: 0.55,
+  walkSpeed: 2.5,
+  sprintSpeed: 4.5,
+  crouchSpeed: 1.2,
 };
 
 export const COLORS = {
@@ -33,8 +33,8 @@ export const TREE = {
 };
 
 export const CAMERA = {
-  offset: { x: 9, y: 11, z: 9 },
-  lookAtHeight: 0.8,
+  offset: { x: 5, y: 6, z: 5 },
+  lookAtHeight: 0.5,
   lerp: 0.08,
 };
 
