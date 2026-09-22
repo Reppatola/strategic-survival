@@ -17,6 +17,7 @@ export default class Character {
     this.mixer = null;
     this.actions = {};
     this.currentAction = null;
+    this.colliders = [];
 
     this.velocity = 0;
     this.isMoving = false;
@@ -134,6 +135,18 @@ export default class Character {
     const dx = worldX * speed * dt;
     const dz = worldZ * speed * dt;
 
+    // Проверяем столкновения по X и Z отдельно — чтобы можно было скользить вдоль стены
+    const newX = this.mesh.position.x + dx;
+    const newZ = this.mesh.position.z + dz;
+    const r = 0.35;
+
+    if (!this.checkCollision(newX, this.mesh.position.z, r)) {
+      this.mesh.position.x = newX;
+    }
+    if (!this.checkCollision(this.mesh.position.x, newZ, r)) {
+      this.mesh.position.z = newZ;
+    }
+
     this.mesh.position.x += dx;
     this.mesh.position.z += dz;
 
@@ -174,4 +187,20 @@ export default class Character {
     newAction.reset().fadeIn(duration).play();
     this.currentAction = newAction;
   }
+
+  checkCollision(x, z, radius) {
+    for (const c of this.colliders) {
+      if (
+        x + radius > c.minX &&
+        x - radius < c.maxX &&
+        z + radius > c.minZ &&
+        z - radius < c.maxZ
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
 }
+
+  

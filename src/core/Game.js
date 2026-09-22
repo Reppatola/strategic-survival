@@ -4,6 +4,7 @@ import Input from './Input.js';
 import Character from '../entities/Character.js';
 import NoiseSystem from '../systems/NoiseSystem.js';
 import HUD from '../ui/HUD.js';
+import Village from '../world/Village.js';
 
 export default class Game {
   constructor(container) {
@@ -14,8 +15,10 @@ export default class Game {
 
     this.initScene();
     this.initLights();
-    this.initWorld();
+    this.village = new Village(this.scene);   // ← сначала деревня
+    this.initWorld();                          // ← потом лес (уже с фильтром)
     this.initPlayer();
+    this.player.colliders = this.village.colliders;
 
     this.noise = new NoiseSystem(this.scene, this.player);
     this.hud = new HUD();
@@ -81,7 +84,11 @@ export default class Game {
       [12, 0, 2], [-13, 0, 1], [8, 0, -12], [-2, 0, -14],
       [14, 0, 10], [-14, 0, -10],
     ];
-    positions.forEach(([x, y, z]) => this.addTree(x, y, z));
+    positions.forEach(([x, y, z]) => {
+      // Не ставим деревья на территории деревни
+      if (this.village && this.village.isInsideVillage(x, z, 4)) return;
+      this.addTree(x, y, z);
+    });
   }
 
   addTree(x, y, z) {
