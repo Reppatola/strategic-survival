@@ -20,8 +20,8 @@ export default class Player {
     const noseGeom = new THREE.ConeGeometry(0.15, 0.4, 6);
     const noseMat = new THREE.MeshStandardMaterial({ color: 0xffdd44 });
     this.nose = new THREE.Mesh(noseGeom, noseMat);
-    this.nose.position.set(0, PLAYER.height * 0.5, -PLAYER.radius - 0.2);
-    this.nose.rotation.x = -Math.PI / 2;
+    this.nose.position.set(0, PLAYER.height * 0.5, PLAYER.radius + 0.2);
+    this.nose.rotation.x = Math.PI / 2;
     this.mesh.add(this.nose);
   }
 
