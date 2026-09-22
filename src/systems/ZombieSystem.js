@@ -28,9 +28,10 @@ export default class ZombieSystem {
 
   create(x, y, facing, isStatic) {
     const s = this.scene;
-    const sprite = s.add.rectangle(x, y, ZOMBIE.size, ZOMBIE.size, ZOMBIE.colorStatic);
-    sprite.setStrokeStyle(2, 0x660000);
+    const sprite = s.add.sprite(x, y, 'zombie');
+    sprite.setDisplaySize(ZOMBIE.size * 2, ZOMBIE.size * 2);
     sprite.setRotation(facing);
+    sprite.setDepth(5);
     s.physics.add.existing(sprite);
     sprite.body.setAllowGravity(false);
     sprite.body.setCollideWorldBounds(true);
@@ -150,8 +151,8 @@ export default class ZombieSystem {
       this.visionGfx.lineStyle(1, fillColor, 0.5);
       this.visionGfx.strokeTriangle(sx, sy, x1, y1, x2, y2);
 
-      z.sprite.setFillStyle(
-        z.isAlerted ? ZOMBIE.colorAlerted : (z.isStatic ? ZOMBIE.colorStatic : ZOMBIE.colorSpawned)
+      z.sprite.setTint(
+        z.isAlerted ? 0xff4444 : (z.isStatic ? 0xffffff : 0xffcccc)
       );
 
       if (dist < 26) s.player.damage(ZOMBIE.damage);
