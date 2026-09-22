@@ -190,9 +190,12 @@ export default class Game {
       z: target.z + CAMERA.offset.z,
     };
 
-    this.camera.position.x += (desired.x - this.camera.position.x) * CAMERA.lerp;
-    this.camera.position.y += (desired.y - this.camera.position.y) * CAMERA.lerp;
-    this.camera.position.z += (desired.z - this.camera.position.z) * CAMERA.lerp;
+    // Кадронезависимый lerp — работает одинаково при любом FPS
+    const t = 1 - Math.pow(1 - CAMERA.lerp, dt * 60);
+
+    this.camera.position.x += (desired.x - this.camera.position.x) * t;
+    this.camera.position.y += (desired.y - this.camera.position.y) * t;
+    this.camera.position.z += (desired.z - this.camera.position.z) * t;
 
     this.camera.lookAt(target.x, target.y + CAMERA.lookAtHeight, target.z);
   }
@@ -207,7 +210,7 @@ export default class Game {
 
   animate = () => {
     requestAnimationFrame(this.animate);
-    const dt = Math.min(this.clock.getDelta(), 0.05);
+    const dt = Math.min(this.clock.getDelta(), 0.033);
 
     this.input.update();
     this.player.update(dt, this.input);

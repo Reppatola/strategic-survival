@@ -74,6 +74,11 @@ export default class Character {
       this.currentAction.play();
     }
 
+    // Скорость анимации — подстраивается под реальную скорость движения
+    // Чем больше baseSpeed, тем БЫСТРЕЕ должна проигрываться анимация
+    this.walkBaseSpeed = 2.0;    // ← подбери это число
+    this.runBaseSpeed = 4.5;     // ← и это
+
     console.log('=== НАЙДЕННЫЕ ДЕЙСТВИЯ ===', Object.keys(this.actions));
   }
 
@@ -91,6 +96,7 @@ export default class Character {
     const dx = input.moveX * speed * dt;
     const dz = input.moveY * speed * dt;
 
+    // Плавное движение с использованием скорости напрямую
     this.mesh.position.x += dx;
     this.mesh.position.z += dz;
 
@@ -111,6 +117,17 @@ export default class Character {
 
     if (desired && desired !== this.currentAction) {
       this.fadeToAction(desired);
+    }
+
+    // === СИНХРОНИЗАЦИЯ: анимация играет со скоростью, равной реальной ===
+    if (this.currentAction && this.currentAction !== this.actions.idle) {
+      const base = (this.currentAction === this.actions.run)
+        ? this.runBaseSpeed
+        : this.walkBaseSpeed;
+      // При реальной скорости = base → timeScale = 1 (нормальная анимация)
+      // Быстрее движешься → анимация ускоряется; медленнее → замедляется
+      const scale = this.velocity / base;
+      this.currentAction.timeScale = Math.max(0.3, Math.min(scale, 2.0));
     }
   }
 

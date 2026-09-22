@@ -35,7 +35,7 @@ export const TREE = {
 export const CAMERA = {
   offset: { x: 5, y: 6, z: 5 },
   lookAtHeight: 0.5,
-  lerp: 0.08,
+  lerp: 0.15,
 };
 
 // ЗАГЛУШКИ — пока пустые, механики перенесём потом
