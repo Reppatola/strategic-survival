@@ -38,6 +38,11 @@ export default class PlayerSystem {
     if (keys.down.isDown) vy += speed;
     if (vx !== 0 && vy !== 0) { vx *= Math.SQRT1_2; vy *= Math.SQRT1_2; }
     this.sprite.body.setVelocity(vx, vy);
+    // Поворот спрайта в сторону движения
+    if (vx !== 0 || vy !== 0) {
+      const angle = Math.atan2(vy, vx);
+      this.sprite.setRotation(angle);
+    }
 
     this.isMoving = vx !== 0 || vy !== 0;
     this.isCrouching = isCrouching;
