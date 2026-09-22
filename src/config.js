@@ -9,11 +9,11 @@ export const WORLD = {
 };
 
 export const PLAYER = {
-  radius: 0.4,
-  height: 1.6,
-  walkSpeed: 4,     // юнитов/сек
-  sprintSpeed: 7,
-  crouchSpeed: 2,
+  radius: 0.28,
+  height: 1.1,
+  walkSpeed: 3.5,
+  sprintSpeed: 6,
+  crouchSpeed: 1.8,
 };
 
 export const COLORS = {
@@ -25,10 +25,16 @@ export const COLORS = {
   trunk: 0x5a3820,
 };
 
+export const TREE = {
+  trunkRadius: 0.16,
+  trunkHeight: 2.8,
+  crownRadius: 1.7,
+  crownY: 3.4,
+};
+
 export const CAMERA = {
-  // Изометрический угол: сверху-сбоку
-  offset: { x: 12, y: 14, z: 12 },
-  lookAtHeight: 1,
+  offset: { x: 9, y: 11, z: 9 },
+  lookAtHeight: 0.8,
   lerp: 0.08,
 };
 

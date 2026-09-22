@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { WORLD, COLORS, CAMERA } from '../config.js';
+import { WORLD, COLORS, CAMERA, TREE } from '../config.js';
 import Input from './Input.js';
 import Player from '../entities/Player.js';
 
@@ -67,26 +67,41 @@ export default class Game {
     ground.receiveShadow = true;
     this.scene.add(ground);
 
-    // Пара деревьев (простая заглушка — цилиндр + сфера)
+    // Лес — 18 деревьев в разных точках
     const positions = [
-      [-5, 0, -5], [6, 0, -3], [-3, 0, 8], [8, 0, 7],
-      [0, 0, -8], [-8, 0, 4],
+      [-6, 0, -7], [7, 0, -5], [-3, 0, 9], [9, 0, 8],
+      [0, 0, -10], [-9, 0, 5], [5, 0, 4], [-7, 0, -2],
+      [10, 0, -8], [-11, 0, -6], [3, 0, 11], [-5, 0, 13],
+      [12, 0, 2], [-13, 0, 1], [8, 0, -12], [-2, 0, -14],
+      [14, 0, 10], [-14, 0, -10],
     ];
     positions.forEach(([x, y, z]) => this.addTree(x, y, z));
   }
 
   addTree(x, y, z) {
-    const trunkGeom = new THREE.CylinderGeometry(0.15, 0.2, 1.5, 6);
+    // Ствол
+    const trunkGeom = new THREE.CylinderGeometry(
+      TREE.trunkRadius * 0.8,
+      TREE.trunkRadius,
+      TREE.trunkHeight,
+      6
+    );
     const trunkMat = new THREE.MeshStandardMaterial({ color: COLORS.trunk });
     const trunk = new THREE.Mesh(trunkGeom, trunkMat);
-    trunk.position.set(x, 0.75, z);
+    trunk.position.set(x, TREE.trunkHeight / 2, z);
     trunk.castShadow = true;
+    trunk.receiveShadow = true;
     this.scene.add(trunk);
 
-    const crownGeom = new THREE.SphereGeometry(0.9, 8, 6);
-    const crownMat = new THREE.MeshStandardMaterial({ color: COLORS.tree });
+    // Крона — низкий полигонаж, шарообразная
+    const crownGeom = new THREE.IcosahedronGeometry(TREE.crownRadius, 1);
+    const crownMat = new THREE.MeshStandardMaterial({
+      color: COLORS.tree,
+      flatShading: true,
+      roughness: 0.9,
+    });
     const crown = new THREE.Mesh(crownGeom, crownMat);
-    crown.position.set(x, 1.9, z);
+    crown.position.set(x, TREE.crownY, z);
     crown.castShadow = true;
     this.scene.add(crown);
   }
