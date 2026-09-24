@@ -19,25 +19,35 @@ export default class MapBuilder {
       .setOrigin(0, 0)
       .setDepth(-3);
 
-    // Пятна земли — декор для разнообразия
-    const dirtSpots = [
+    // Пятна земли — декор для разнообразия (и поверхность «земля» для шума)
+    this.dirtSpots = [
       [500, 400, 200, 150],
       [1200, 800, 250, 180],
       [1600, 500, 180, 160],
       [800, 1000, 220, 200],
     ];
-    dirtSpots.forEach(([x, y, w, h]) => {
+    this.dirtSpots.forEach(([x, y, w, h]) => {
       s.add.tileSprite(x, y, w, h, 'dirt')
         .setOrigin(0, 0)
         .setDepth(-2)
         .setAlpha(0.6);
     });
+  }
 
-    // Озеро — область воды
-    // s.add.tileSprite(1500, 200, 350, 220, 'water')
-      // .setOrigin(0, 0)
-      // .setDepth(-2)
-      // .setAlpha(0.9);
+  // Поверхность под точкой — для модификаторов шума (VISION.md)
+  // Порядок: бетон у стен приоритетнее пятен земли
+  surfaceAt(x, y) {
+    const walls = this.scene.walls.getChildren();
+    for (const w of walls) {
+      const b = w.getBounds();
+      if (x >= b.left - 8 && x <= b.right + 8 && y >= b.top - 8 && y <= b.bottom + 8) {
+        return 'concrete';
+      }
+    }
+    for (const [sx, sy, sw, sh] of this.dirtSpots) {
+      if (x >= sx && x <= sx + sw && y >= sy && y <= sy + sh) return 'dirt';
+    }
+    return 'grass';
   }
 
   buildZones() {

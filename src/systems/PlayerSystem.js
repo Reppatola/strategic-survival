@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLORS, PLAYER, WORLD, ZOMBIE, MELEE } from '../config.js';
+import { COLORS, PLAYER, WORLD, ZOMBIE, MELEE, NOISE_DB } from '../config.js';
 
 export default class PlayerSystem {
   constructor(scene) {
@@ -17,6 +17,7 @@ export default class PlayerSystem {
     this.weaponTimer = null;
     this.aimAngle = 0;        // последнее направление выстрела
     this.lastMeleeTime = 0;
+    this.footwear = PLAYER.footwear;   // ключ из NOISE_DB.footwear (позже — из экипировки)
 
     const s = scene;
     this.sprite = s.add.sprite(WORLD.width / 2, WORLD.height / 2, 'player');
@@ -134,7 +135,7 @@ export default class PlayerSystem {
       const diff = Math.abs(Phaser.Math.Angle.Wrap(angleToZombie - facing));
 
       if (diff < halfArc) {
-        // Спереди — урон + отбрасывание
+        // Спереди — урон + отбрасывание + оглушение
         didHit = true;
         s.zombies.damage(z, MELEE.damage);
         if (z.sprite.active) {
@@ -143,25 +144,24 @@ export default class PlayerSystem {
             Math.cos(angleToZombie) * kb,
             Math.sin(angleToZombie) * kb
           );
-          s.time.delayedCall(150, () => {
-            if (z.sprite.active) z.sprite.body.setVelocity(0, 0);
-          });
+          // ФИКС: оглушаем, чтобы AI не перезаписал velocity в тот же кадр
+          z.stunnedUntil = now + MELEE.stunMs;
         }
         // Зомби становится агрессивным — увидел игрока в упор
         z.isAlerted = true;
         z.hasTarget = true;
         z.targetX = px;
         z.targetY = py;
-      } else if (diff > halfBack) {
-        // СЗАДИ — мгновенное убийство
+      } else if (diff > Math.PI - halfBack) {
+        // ФИКС: СЗАДИ — дуга 120° за спиной, а не «всё кроме переднего конуса»
         didHit = true;
         s.zombies.kill(z);
         s.kills++;
       }
     }
 
-    // Шум от удара (тише выстрела, но не бесшумно)
-    s.noise.addPulse(MELEE.noise);
+    // Шум от удара в dB (VISION.md: удар кулаком +20 dB)
+    s.noise.addPulse(NOISE_DB.impulses.melee);
 
     // Визуал: вспышка дуги перед игроком
     const arcGfx = s.add.graphics();

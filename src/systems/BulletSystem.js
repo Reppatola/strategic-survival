@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLORS, BULLET, NOISE, ZOMBIE } from '../config.js';
+import { COLORS, BULLET, NOISE_DB, ZOMBIE } from '../config.js';
 
 export default class BulletSystem {
   constructor(scene) {
@@ -39,7 +39,8 @@ export default class BulletSystem {
     s.tweens.add({ targets: flash, alpha: 0, duration: 100, onComplete: () => flash.destroy() });
 
     s.player.aimAndFlash(angle);
-    s.noise.addPulse(NOISE.shotImpulse);
+    // Выстрел из пистолета: +110 dB (VISION.md)
+    s.noise.addPulse(NOISE_DB.impulses.pistol);
 
     if (s.noise.criticalActive && !s.territory.locked) {
       s.zombies.spawnGroupFromEdge();

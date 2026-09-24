@@ -35,6 +35,9 @@ export default class GameScene extends Phaser.Scene {
       shift: 'SHIFT', crouch: 'C',
     });
 
+    // ФИКС: SPACE не должна скроллить страницу в браузере
+    this.input.keyboard.addCapture('SPACE');
+
     this.input.on('pointerdown', (p) => this.bullets.shoot(p));
     this.touch = new TouchControls(this);
     this.input.keyboard.on('keydown-R', () => {
@@ -64,8 +67,8 @@ export default class GameScene extends Phaser.Scene {
         this.bullets.shootAtAngle(angle);
       }
     }
-    this.noise.update(time);
-    this.zombies.update();
+    this.noise.update(time, delta);   // теперь нужен delta (затухание в dB/сек)
+    this.zombies.update(time);        // теперь нужен time (оглушение)
     this.bullets.update();
     this.territory.update(time);
     this.hud.update();

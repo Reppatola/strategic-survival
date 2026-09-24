@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, NOISE } from '../config.js';
+import { GAME_WIDTH, GAME_HEIGHT, NOISE_DB } from '../config.js';
 
 export default class HUDSystem {
   constructor(scene) {
@@ -17,7 +17,7 @@ export default class HUDSystem {
       .setOrigin(0, 0.5).setScrollFactor(0).setDepth(101);
     this.pulseBar = s.add.rectangle(GAME_WIDTH/2 - 200, 24, 0, 10, 0xff4444)
       .setOrigin(0, 0.5).setScrollFactor(0).setDepth(102);
-    s.add.text(GAME_WIDTH/2, 24, 'NOISE', {
+    s.add.text(GAME_WIDTH/2, 24, 'NOISE dB', {
       fontSize: '11px', color: '#fff', fontFamily: 'Courier New, monospace',
     }).setOrigin(0.5).setScrollFactor(0).setDepth(103);
 
@@ -26,7 +26,7 @@ export default class HUDSystem {
     this.hpBar = s.add.rectangle(GAME_WIDTH/2 - 200, 46, 400, 8, 0x44ff44)
       .setOrigin(0, 0.5).setScrollFactor(0).setDepth(101);
 
-    s.add.text(GAME_WIDTH - 12, 10, 'WASD walk · SHIFT sprint · C crouch · LMB shoot', {
+    s.add.text(GAME_WIDTH - 12, 10, 'WASD walk · SHIFT sprint · C crouch · LMB shoot · SPACE melee', {
       fontSize: '11px', color: '#666', fontFamily: 'Courier New, monospace',
     }).setOrigin(1, 0).setScrollFactor(0).setDepth(100);
 
@@ -41,8 +41,8 @@ export default class HUDSystem {
     const n = s.noise;
     const p = s.player;
 
-    const baseW = (n.base / NOISE.max) * 400;
-    const pulseW = (n.pulse / NOISE.max) * 400;
+    const baseW = (n.base / NOISE_DB.max) * 400;
+    const pulseW = (n.pulse / NOISE_DB.max) * 400;
     this.baseBar.width = baseW;
     this.pulseBar.x = GAME_WIDTH / 2 - 200 + baseW;
     this.pulseBar.width = Math.min(pulseW, 400 - baseW);
@@ -58,11 +58,15 @@ export default class HUDSystem {
       warn = '   ⚠ ALERT';
     }
 
+    // Модификаторы шума видны вживую — удобно калибровать баланс
+    const surface = s.map.surfaceAt(p.sprite.x, p.sprite.y);
+
     this.text.setText(
       `STATE ${n.state}   V ${Math.round(p.velocity)}\n` +
-      `BASE  ${Math.round(n.base)}%\n` +
-      `PULSE ${Math.round(n.pulse)}%\n` +
-      `TOTAL ${Math.round(n.level)}%${warn}\n` +
+      `BASE  ${Math.round(n.base)} dB\n` +
+      `PULSE ${Math.round(n.pulse)} dB\n` +
+      `TOTAL ${Math.round(n.level)} dB${warn}\n` +
+      `SURFACE ${surface}   SHOES ${p.footwear}\n` +
       `HP ${p.hp}   KILLS ${s.kills}   ZOMBIES ${s.zombies.count()}\n` +
       `LAST KNOWN  ${Math.round(n.lastKnownX)} : ${Math.round(n.lastKnownY)}`
     );
