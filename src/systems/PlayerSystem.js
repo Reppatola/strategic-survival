@@ -4,6 +4,7 @@ import { COLORS, PLAYER, WORLD, ZOMBIE, MELEE, NOISE_DB } from '../config.js';
 const DIRS = ['s', 'se', 'e', 'ne', 'n', 'nw', 'w', 'sw'];
 const WALK_FRAMES = 31;
 const FRAME_DURATION = 40;   // мс на кадр анимации
+const GLOW_ALPHA = 0.35;     // сила подсветки героя (0.2 — слабо, 0.5 — сильно)
 
 export default class PlayerSystem {
   constructor(scene) {
@@ -15,7 +16,7 @@ export default class PlayerSystem {
     this.isCrouching = false;
     this.isSprinting = false;
     this.velocity = 0;
-    this.baseScale = 4;
+    this.baseScale = 4.5;
     this.footstepTimer = 0;
     this.weaponTimer = null;
     this.aimAngle = 0;
@@ -23,25 +24,35 @@ export default class PlayerSystem {
     this.footwear = PLAYER.footwear;
 
     // Направление и анимация
-    this.facing = 's';           // текущая буква направления
-    this.facingAngle = Math.PI / 2;  // угол в радианах для melee
-    this.frame = 1;              // кадр walk (1..31)
+    this.facing = 's';
+    this.facingAngle = Math.PI / 2;
+    this.frame = 1;
     this.animTimer = 0;
 
     const s = scene;
+
+    // === ГЛАВНЫЙ СПРАЙТ ГЕРОЯ ===
     this.sprite = s.add.sprite(WORLD.width / 2, WORLD.height / 2, 'hero_idle_s');
     this.sprite.setDisplaySize(PLAYER.size * this.baseScale, PLAYER.size * this.baseScale);
     this.sprite.setDepth(10);
+
+    // === СЛОЙ ПОДСВЕТКИ (поверх спрайта, blend ADD) ===
+    this.glow = s.add.sprite(
+      WORLD.width / 2, WORLD.height / 2,
+      'hero_idle_s'
+    );
+    this.glow.setDisplaySize(PLAYER.size * this.baseScale, PLAYER.size * this.baseScale);
+    this.glow.setDepth(10.01);
+    this.glow.setAlpha(GLOW_ALPHA);
+    this.glow.setBlendMode(Phaser.BlendModes.ADD);
+
+    // Физика — на основном спрайте
     s.physics.add.existing(this.sprite);
     this.sprite.body.setCollideWorldBounds(true);
 
-    // === Хитбокс под размер героя ===
-    // Тело 24×24 — только «ноги», центр героя
-    this.sprite.body.setSize(24, 24);
-    // Смещение от верхнего левого угла спрайта (64×64):
-    // X = (64-24)/2 = 20 (центрировать)
-    // Y = 64-24 = 40 (в самый низ — под ноги)
-    this.sprite.body.setOffset(20, 20);
+    // Хитбокс — 20×20, в нижней части спрайта
+    this.sprite.body.setSize(20, 20);
+    this.sprite.body.setOffset(22, 44);
 
     s.physics.add.collider(this.sprite, s.walls);
   }
@@ -74,7 +85,7 @@ export default class PlayerSystem {
 
     const isMoving = vx !== 0 || vy !== 0;
 
-    // === Определяем направление ===
+    // === Направление ===
     if (isMoving) {
       const angle = Math.atan2(vy, vx);
       const octant = Math.round(angle / (Math.PI / 4));
@@ -88,12 +99,12 @@ export default class PlayerSystem {
     this.isSprinting = isSprinting;
     this.velocity = Math.hypot(vx, vy);
 
-    // === Анимация (walk / idle) ===
+    // === Анимация ===
     if (isMoving) {
       this.animTimer += delta;
       if (this.animTimer >= FRAME_DURATION) {
         this.animTimer -= FRAME_DURATION;
-        this.frame = (this.frame % WALK_FRAMES) + 1;   // 1..31 цикл
+        this.frame = (this.frame % WALK_FRAMES) + 1;
       }
       this.sprite.setTexture(`hero_walk_${this.facing}_${this.frame}`);
     } else {
@@ -102,7 +113,6 @@ export default class PlayerSystem {
       this.animTimer = 0;
     }
 
-    // Размер (без покачивания — покачивание теперь в самой анимации)
     const sc = PLAYER.size * this.baseScale;
     this.sprite.setDisplaySize(sc, sc);
 
@@ -116,8 +126,17 @@ export default class PlayerSystem {
       this.footstepTimer = 0;
     }
 
-    // === Визуальный tint для стелса ===
+    // === Tint стелса ===
     this.sprite.setTint(isCrouching ? 0x6688ff : 0xffffff);
+
+    // === СИНХРОНИЗАЦИЯ ПОДСВЕТКИ ===
+    this.glow.x = this.sprite.x;
+    this.glow.y = this.sprite.y;
+    if (this.glow.texture.key !== this.sprite.texture.key) {
+      this.glow.setTexture(this.sprite.texture.key);
+    }
+    this.glow.setDisplaySize(this.sprite.displayWidth, this.sprite.displayHeight);
+    this.glow.setTint(this.sprite.tintTopLeft || 0xffffff);
   }
 
   spawnFootstep() {
@@ -142,8 +161,6 @@ export default class PlayerSystem {
 
     const px = this.sprite.x;
     const py = this.sprite.y;
-    // ФИКС: используем facingAngle (угол последнего движения/выстрела),
-    // а не this.sprite.rotation (мы больше не вращаем спрайт)
     const facing = this.facingAngle;
     const halfArc = Phaser.Math.DegToRad(MELEE.arc / 2);
     const halfBack = Phaser.Math.DegToRad(MELEE.backstabAngle / 2);
@@ -185,7 +202,6 @@ export default class PlayerSystem {
 
     s.noise.addPulse(NOISE_DB.impulses.melee);
 
-    // Визуал: дуга удара
     const arcGfx = s.add.graphics();
     arcGfx.setDepth(9);
     arcGfx.lineStyle(3, didHit ? 0xffffff : 0xffaa44, 0.9);
@@ -202,24 +218,20 @@ export default class PlayerSystem {
     return true;
   }
 
-  // Поворот героя в сторону выстрела
   aimAndFlash(angle) {
     if (this.isDead) return;
 
     this.aimAngle = angle;
     this.facingAngle = angle;
 
-    // Определяем направление и ставим idle-спрайт в эту сторону
     const octant = Math.round(angle / (Math.PI / 4));
     const dirIndex = (octant + 6 + 8) % 8;
     this.facing = DIRS[dirIndex];
 
-    // Кратковременно показываем idle в направлении выстрела
-    // (позже заменим на спрайты с оружием)
     if (this.weaponTimer) this.weaponTimer.remove();
 
     this.sprite.setTexture(`hero_idle_${this.facing}`);
-    this.sprite.setTint(0xffdd66);   // жёлтая вспышка выстрела
+    this.sprite.setTint(0xffdd66);
 
     this.weaponTimer = this.scene.time.delayedCall(280, () => {
       if (this.isDead) return;
@@ -240,6 +252,7 @@ export default class PlayerSystem {
   die() {
     this.isDead = true;
     this.sprite.body.setVelocity(0, 0);
+    if (this.glow) this.glow.setVisible(false);
     if (this.scene.zombies) {
       this.scene.zombies.list.forEach(z => z.sprite.body.setVelocity(0, 0));
     }
