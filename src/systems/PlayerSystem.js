@@ -1,6 +1,10 @@
 import Phaser from 'phaser';
 import { COLORS, PLAYER, WORLD, ZOMBIE, MELEE, NOISE_DB } from '../config.js';
 
+const DIRS = ['s', 'se', 'e', 'ne', 'n', 'nw', 'w', 'sw'];
+const WALK_FRAMES = 31;
+const FRAME_DURATION = 40;   // мс на кадр анимации
+
 export default class PlayerSystem {
   constructor(scene) {
     this.scene = scene;
@@ -11,20 +15,34 @@ export default class PlayerSystem {
     this.isCrouching = false;
     this.isSprinting = false;
     this.velocity = 0;
-    this.baseScale = 1.4;
+    this.baseScale = 4;
     this.footstepTimer = 0;
-    this.swayTime = 0;
     this.weaponTimer = null;
-    this.aimAngle = 0;        // последнее направление выстрела
+    this.aimAngle = 0;
     this.lastMeleeTime = 0;
-    this.footwear = PLAYER.footwear;   // ключ из NOISE_DB.footwear (позже — из экипировки)
+    this.footwear = PLAYER.footwear;
+
+    // Направление и анимация
+    this.facing = 's';           // текущая буква направления
+    this.facingAngle = Math.PI / 2;  // угол в радианах для melee
+    this.frame = 1;              // кадр walk (1..31)
+    this.animTimer = 0;
 
     const s = scene;
-    this.sprite = s.add.sprite(WORLD.width / 2, WORLD.height / 2, 'player');
+    this.sprite = s.add.sprite(WORLD.width / 2, WORLD.height / 2, 'hero_idle_s');
     this.sprite.setDisplaySize(PLAYER.size * this.baseScale, PLAYER.size * this.baseScale);
     this.sprite.setDepth(10);
     s.physics.add.existing(this.sprite);
     this.sprite.body.setCollideWorldBounds(true);
+
+    // === Хитбокс под размер героя ===
+    // Тело 24×24 — только «ноги», центр героя
+    this.sprite.body.setSize(24, 24);
+    // Смещение от верхнего левого угла спрайта (64×64):
+    // X = (64-24)/2 = 20 (центрировать)
+    // Y = 64-24 = 40 (в самый низ — под ноги)
+    this.sprite.body.setOffset(20, 20);
+
     s.physics.add.collider(this.sprite, s.walls);
   }
 
@@ -54,47 +72,56 @@ export default class PlayerSystem {
 
     this.sprite.body.setVelocity(vx, vy);
 
-    // Поворот в сторону движения
-    if (vx !== 0 || vy !== 0) {
+    const isMoving = vx !== 0 || vy !== 0;
+
+    // === Определяем направление ===
+    if (isMoving) {
       const angle = Math.atan2(vy, vx);
-      this.sprite.setRotation(angle);
-      this.aimAngle = angle;
+      const octant = Math.round(angle / (Math.PI / 4));
+      const dirIndex = (octant + 6 + 8) % 8;
+      this.facing = DIRS[dirIndex];
+      this.facingAngle = angle;
     }
 
-    this.isMoving = vx !== 0 || vy !== 0;
+    this.isMoving = isMoving;
     this.isCrouching = isCrouching;
     this.isSprinting = isSprinting;
     this.velocity = Math.hypot(vx, vy);
 
-    // Покачивание при ходьбе
-    let swayY = 1;
-    if (this.isMoving) {
-      this.swayTime += delta;
-      const speedFactor = this.isCrouching ? 140 : (this.isSprinting ? 60 : 90);
-      swayY = 1 + Math.sin(this.swayTime / speedFactor) * 0.06;
+    // === Анимация (walk / idle) ===
+    if (isMoving) {
+      this.animTimer += delta;
+      if (this.animTimer >= FRAME_DURATION) {
+        this.animTimer -= FRAME_DURATION;
+        this.frame = (this.frame % WALK_FRAMES) + 1;   // 1..31 цикл
+      }
+      this.sprite.setTexture(`hero_walk_${this.facing}_${this.frame}`);
     } else {
-      this.swayTime = 0;
+      this.sprite.setTexture(`hero_idle_${this.facing}`);
+      this.frame = 1;
+      this.animTimer = 0;
     }
 
+    // Размер (без покачивания — покачивание теперь в самой анимации)
     const sc = PLAYER.size * this.baseScale;
-    this.sprite.setDisplaySize(sc, sc * swayY);
+    this.sprite.setDisplaySize(sc, sc);
 
-    // Следы
+    // === Следы от шагов ===
     this.footstepTimer += delta;
     const stepInterval = this.isCrouching ? 500 : (this.isSprinting ? 130 : 220);
-    if (this.isMoving && this.footstepTimer > stepInterval) {
+    if (isMoving && this.footstepTimer > stepInterval) {
       this.footstepTimer = 0;
       this.spawnFootstep();
-    } else if (!this.isMoving) {
+    } else if (!isMoving) {
       this.footstepTimer = 0;
     }
 
+    // === Визуальный tint для стелса ===
     this.sprite.setTint(isCrouching ? 0x6688ff : 0xffffff);
   }
 
   spawnFootstep() {
     const s = this.scene;
-    // Следы смещены назад по направлению движения, чтобы не «печатались» под ногами
     const f = s.add.circle(this.sprite.x, this.sprite.y, 4, 0x000000, 0.35);
     f.setDepth(1);
     s.tweens.add({
@@ -115,13 +142,13 @@ export default class PlayerSystem {
 
     const px = this.sprite.x;
     const py = this.sprite.y;
-    const facing = this.sprite.rotation;
+    // ФИКС: используем facingAngle (угол последнего движения/выстрела),
+    // а не this.sprite.rotation (мы больше не вращаем спрайт)
+    const facing = this.facingAngle;
     const halfArc = Phaser.Math.DegToRad(MELEE.arc / 2);
     const halfBack = Phaser.Math.DegToRad(MELEE.backstabAngle / 2);
 
     let didHit = false;
-
-    // Копия массива — потому что будем удалять зомби в цикле
     const zombieList = [...s.zombies.list];
 
     for (const z of zombieList) {
@@ -135,7 +162,6 @@ export default class PlayerSystem {
       const diff = Math.abs(Phaser.Math.Angle.Wrap(angleToZombie - facing));
 
       if (diff < halfArc) {
-        // Спереди — урон + отбрасывание + оглушение
         didHit = true;
         s.zombies.damage(z, MELEE.damage);
         if (z.sprite.active) {
@@ -144,36 +170,27 @@ export default class PlayerSystem {
             Math.cos(angleToZombie) * kb,
             Math.sin(angleToZombie) * kb
           );
-          // ФИКС: оглушаем, чтобы AI не перезаписал velocity в тот же кадр
           z.stunnedUntil = now + MELEE.stunMs;
         }
-        // Зомби становится агрессивным — увидел игрока в упор
         z.isAlerted = true;
         z.hasTarget = true;
         z.targetX = px;
         z.targetY = py;
       } else if (diff > Math.PI - halfBack) {
-        // ФИКС: СЗАДИ — дуга 120° за спиной, а не «всё кроме переднего конуса»
         didHit = true;
         s.zombies.kill(z);
         s.kills++;
       }
     }
 
-    // Шум от удара в dB (VISION.md: удар кулаком +20 dB)
     s.noise.addPulse(NOISE_DB.impulses.melee);
 
-    // Визуал: вспышка дуги перед игроком
+    // Визуал: дуга удара
     const arcGfx = s.add.graphics();
     arcGfx.setDepth(9);
     arcGfx.lineStyle(3, didHit ? 0xffffff : 0xffaa44, 0.9);
     arcGfx.beginPath();
-    arcGfx.arc(
-      px, py,
-      MELEE.range,
-      facing - halfArc,
-      facing + halfArc
-    );
+    arcGfx.arc(px, py, MELEE.range, facing - halfArc, facing + halfArc);
     arcGfx.strokePath();
     s.tweens.add({
       targets: arcGfx,
@@ -185,28 +202,28 @@ export default class PlayerSystem {
     return true;
   }
 
-  // Поворот героя в сторону выстрела и смена спрайта
+  // Поворот героя в сторону выстрела
   aimAndFlash(angle) {
     if (this.isDead) return;
 
-    // Поворачиваем героя в сторону выстрела
     this.aimAngle = angle;
-    this.sprite.setRotation(angle);
+    this.facingAngle = angle;
 
-    // Меняем спрайт на «с оружием»
-    this.sprite.setTexture('player_gun');
-    const sc = PLAYER.size * this.baseScale;
-    this.sprite.setDisplaySize(sc, sc);
+    // Определяем направление и ставим idle-спрайт в эту сторону
+    const octant = Math.round(angle / (Math.PI / 4));
+    const dirIndex = (octant + 6 + 8) % 8;
+    this.facing = DIRS[dirIndex];
 
-    // Сбрасываем предыдущий таймер, если есть
+    // Кратковременно показываем idle в направлении выстрела
+    // (позже заменим на спрайты с оружием)
     if (this.weaponTimer) this.weaponTimer.remove();
 
-    // Через 280 мс — возвращаем в обычное состояние
+    this.sprite.setTexture(`hero_idle_${this.facing}`);
+    this.sprite.setTint(0xffdd66);   // жёлтая вспышка выстрела
+
     this.weaponTimer = this.scene.time.delayedCall(280, () => {
       if (this.isDead) return;
-      this.sprite.setTexture('player');
-      const sc2 = PLAYER.size * this.baseScale;
-      this.sprite.setDisplaySize(sc2, sc2);
+      this.sprite.setTint(this.isCrouching ? 0x6688ff : 0xffffff);
     });
   }
 
