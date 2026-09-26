@@ -1,7 +1,7 @@
 export const GAME_WIDTH = 960;
 export const GAME_HEIGHT = 540;
 
-export const WORLD = { width: 2000, height: 1200 };
+export const WORLD = { width: 3840, height: 2560 };
 
 // Масштаб мира: пикселей в одном метре (для физики звука и сенсоров)
 export const PX_PER_METER = 20;
